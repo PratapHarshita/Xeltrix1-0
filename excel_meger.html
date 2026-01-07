@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Merge Excel / CSV Files</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            border-radius: 1rem;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+        }
+
+        .file-drop {
+            border: 2px dashed #6c757d;
+            border-radius: 0.75rem;
+            padding: 25px;
+            cursor: pointer;
+            transition: 0.3s;
+            background: #f8f9fa;
+        }
+
+        .file-drop:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+
+        .file-drop input {
+            display: none;
+        }
+
+        .file-list li {
+            list-style: none;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card p-4 text-center" style="width: 420px;">
+    <h3>Merge Files</h3>
+    <p class="text-muted">
+        Upload Excel or CSV files.<br>
+        Columns will be combined side-by-side.
+    </p>
+
+    <!-- File picker -->
+    <label class="file-drop w-100 mb-3">
+        <strong>Click to choose files</strong><br>
+        <span class="text-muted">Excel / CSV supported</span>
+        <input type="file" id="files" multiple accept=".xlsx,.csv" onchange="showFiles()">
+    </label>
+
+    <ul id="fileList" class="text-start text-muted mb-3"></ul>
+
+    <div class="d-flex justify-content-center gap-2">
+        <button class="btn btn-primary" onclick="mergeFiles()">
+            Merge & Download
+        </button>
+        <button class="btn btn-outline-secondary" onclick="clearFiles()">
+            Clear Files
+        </button>
+    </div>
+
+    <small class="text-muted d-block mt-3">
+        Runs 100% in your browser 🚀
+    </small>
+</div>
+
+<script>
+function showFiles() {
+    const input = document.getElementById("files");
+    const list = document.getElementById("fileList");
+    list.innerHTML = "";
+
+    for (let file of input.files) {
+        const li = document.createElement("li");
+        li.textContent = "📄 " + file.name;
+        list.appendChild(li);
+    }
+}
+
+function clearFiles() {
+    document.getElementById("files").value = "";
+    document.getElementById("fileList").innerHTML = "";
+}
+
+async function mergeFiles() {
+    const input = document.getElementById("files");
+    if (!input.files.length) {
+        alert("Please select files first");
+        return;
+    }
+
+    const dataframes = [];
+
+    for (let file of input.files) {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        dataframes.push(json);
+    }
+
+    // 🔥 HORIZONTAL MERGE (column-wise)
+    const maxRows = Math.max(...dataframes.map(df => df.length));
+    const merged = [];
+
+    for (let i = 0; i < maxRows; i++) {
+        let row = [];
+        for (let df of dataframes) {
+            row = row.concat(df[i] || []);
+        }
+        merged.push(row);
+    }
+
+    const newWB = XLSX.utils.book_new();
+    const newSheet = XLSX.utils.aoa_to_sheet(merged);
+    XLSX.utils.book_append_sheet(newWB, newSheet, "Merged");
+
+    XLSX.writeFile(newWB, "merged.xlsx");
+}
+</script>
+
+</body>
+</html>
